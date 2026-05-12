@@ -46,7 +46,7 @@ output:
 
 # g_scripting: true while the script is issuing a light call, preventing
 # on_turn_on / on_turn_off from recursively restarting or stopping light_timer.
-# g_motion_blocked: true for 30 s after HA manually turns off the light.
+# g_motion_blocked: true for motion_block_duration minutes after HA manually turns off the light.
 globals:
   - id: g_scripting
     type: bool
