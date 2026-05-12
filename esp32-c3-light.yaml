@@ -90,6 +90,39 @@ number:
     restore_value: true
     initial_value: 30
 
+  - platform: template
+    name: "Motion Block Duration"
+    id: motion_block_duration
+    min_value: 0
+    max_value: 60
+    step: 1
+    unit_of_measurement: "min"
+    optimistic: true
+    restore_value: true
+    initial_value: 1
+
+  - platform: template
+    name: "Fade In Time"
+    id: fade_in_time
+    min_value: 1
+    max_value: 10
+    step: 1
+    unit_of_measurement: "s"
+    optimistic: true
+    restore_value: true
+    initial_value: 2
+
+  - platform: template
+    name: "Dim Floor"
+    id: dim_floor
+    min_value: 1
+    max_value: 50
+    step: 1
+    unit_of_measurement: "%"
+    optimistic: true
+    restore_value: true
+    initial_value: 10
+
 switch:
   - platform: template
     name: "Motion Detection"
@@ -171,7 +204,7 @@ script:
     mode: restart
     then:
       - lambda: 'id(g_motion_blocked) = true;'
-      - delay: 30s
+      - delay: !lambda 'return (uint32_t)(id(motion_block_duration).state * 60000);'
       - lambda: 'id(g_motion_blocked) = false;'
 
   - id: light_timer
@@ -182,24 +215,26 @@ script:
       - light.turn_on:
           id: motion_light
           brightness: !lambda 'return id(target_brightness).state / 100.0f;'
-          transition_length: 2s
+          transition_length: !lambda 'return (uint32_t)(id(fade_in_time).state * 1000);'
       - lambda: 'id(g_scripting) = false;'
       # 2. Wait for the fade-in to finish.
-      - delay: 2s
+      - delay: !lambda 'return (uint32_t)(id(fade_in_time).state * 1000);'
       # 3. Calculate per-step decrement: total steps = timer_duration*60s / 10s per step.
       - lambda: |-
           id(g_dim_brightness) = id(target_brightness).state / 100.0f;
           float steps = (id(timer_duration).state * 60.0f) / 10.0f;
-          float range = id(g_dim_brightness) - 0.10f;
+          float floor_val = id(dim_floor).state / 100.0f;
+          float range = id(g_dim_brightness) - floor_val;
           id(g_dim_step) = (steps > 0.0f) ? (range / steps) : 0.0f;
       # 4. Step-based dim loop — 10 s per step so HA always shows the current level.
       - while:
           condition:
-            lambda: 'return id(g_dim_brightness) > 0.10f;'
+            lambda: 'return id(g_dim_brightness) > id(dim_floor).state / 100.0f;'
           then:
             - lambda: |-
+                float floor_val = id(dim_floor).state / 100.0f;
                 id(g_dim_brightness) -= id(g_dim_step);
-                if (id(g_dim_brightness) < 0.10f) id(g_dim_brightness) = 0.10f;
+                if (id(g_dim_brightness) < floor_val) id(g_dim_brightness) = floor_val;
             - lambda: 'id(g_scripting) = true;'
             - light.turn_on:
                 id: motion_light

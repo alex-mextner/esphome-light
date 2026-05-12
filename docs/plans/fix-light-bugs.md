@@ -53,19 +53,19 @@ calculated step every 10 s using two new `float` globals: `g_dim_brightness` and
 
 Context: expose every hardcoded constant as a `number` entity so users can tune from HA.
 
-- [ ] Add `number` entity `motion_block_duration` — min 0, max 60, step 1, unit min,
+- [x] Add `number` entity `motion_block_duration` — min 0, max 60, step 1, unit min,
       default 1, restore_value true
-- [ ] Add `number` entity `fade_in_time` — min 1, max 10, step 1, unit s,
+- [x] Add `number` entity `fade_in_time` — min 1, max 10, step 1, unit s,
       default 2, restore_value true
-- [ ] Add `number` entity `dim_floor` — min 1, max 50, step 1, unit %, default 10,
+- [x] Add `number` entity `dim_floor` — min 1, max 50, step 1, unit %, default 10,
       restore_value true
-- [ ] Update `motion_block_timer` to use `motion_block_duration` (convert min→ms)
+- [x] Update `motion_block_timer` to use `motion_block_duration` (convert min→ms)
       instead of the hardcoded `30s`
-- [ ] Update `light_timer` fade-in step to use `fade_in_time` number entity for
+- [x] Update `light_timer` fade-in step to use `fade_in_time` number entity for
       `transition_length` and the post-fade-in `delay`
-- [ ] Update `light_timer` while-loop exit condition and floor `light.turn_on` call
+- [x] Update `light_timer` while-loop exit condition and floor `light.turn_on` call
       to use `dim_floor` instead of hardcoded `10%` / `0.10f`
-- [ ] Verify with `esphome config esp32-c3-light.yaml`
+- [x] Verify with `esphome config esp32-c3-light.yaml`
 
 ### Task 3: HA automation — auto-enable motion detection after 4 hours (Feature)
 
