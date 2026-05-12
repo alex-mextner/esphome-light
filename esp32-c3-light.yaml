@@ -5,7 +5,13 @@ esphome:
     priority: -100
     then:
       - delay: 60s
-      - lambda: 'id(g_boot_done) = true;'
+      # If PIR was already HIGH during the boot delay, on_press won't fire again.
+      # Replay it now so a person already in the room gets the light.
+      - lambda: |-
+          id(g_boot_done) = true;
+          if (id(pir_motion).state && id(motion_enabled).state) {
+            id(light_timer).execute();
+          }
 
 esp32:
   board: esp32-c3-devkitm-1
@@ -167,6 +173,7 @@ binary_sensor:
       number: GPIO4
       mode:
         input: true
+    id: pir_motion
     name: "PIR Motion"
     device_class: motion
     filters:
@@ -258,12 +265,20 @@ script:
                 transition_length: 10s
             - lambda: 'id(g_scripting) = false;'
             - delay: 10s
-      # Hold at target brightness for the full timer_duration when target == dim_floor
+      # Hold at floor brightness for the full timer_duration when target <= dim_floor
       # (dim loop was skipped; sentinel g_dim_step < 0 marks this case).
+      # Explicitly set floor brightness here so light lands at floor even when
+      # target_brightness was set below dim_floor.
       - if:
           condition:
             lambda: 'return id(g_dim_step) < 0.0f;'
           then:
+            - lambda: 'id(g_scripting) = true;'
+            - light.turn_on:
+                id: motion_light
+                brightness: !lambda 'return id(dim_floor).state / 100.0f;'
+                transition_length: 1s
+            - lambda: 'id(g_scripting) = false;'
             - delay: !lambda 'return (uint32_t)(id(timer_duration).state * 60000);'
       # 5. Quick final fade to off (~1 second).
       - lambda: 'id(g_scripting) = true;'
