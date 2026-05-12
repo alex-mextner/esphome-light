@@ -1,6 +1,11 @@
 esphome:
   name: esp32-c3-light
   friendly_name: Motion Light
+  on_boot:
+    priority: -100
+    then:
+      - delay: 60s
+      - lambda: 'id(g_boot_done) = true;'
 
 esp32:
   board: esp32-c3-devkitm-1
@@ -59,6 +64,10 @@ globals:
     type: float
     restore_value: no
     initial_value: '0.0'
+  - id: g_boot_done
+    type: bool
+    restore_value: no
+    initial_value: 'false'
 
 number:
   - platform: template
@@ -161,7 +170,7 @@ binary_sensor:
     name: "PIR Motion"
     device_class: motion
     filters:
-      - delayed_on: 50ms
+      - delayed_on: 500ms
     on_press:
       then:
         - if:
@@ -169,6 +178,7 @@ binary_sensor:
               and:
                 - switch.is_on: motion_enabled
                 - lambda: 'return !id(g_motion_blocked);'
+                - lambda: 'return id(g_boot_done);'
             then:
               - script.execute: light_timer
 

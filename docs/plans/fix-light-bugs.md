@@ -83,10 +83,10 @@ automation YAML that can be pasted into `automations.yaml` or imported via UI.
 Context: HC-SR501 specification says to ignore its output for 60 s after power-on.
 The existing `delayed_on: 50ms` is too short for the RF noise observed on GPIO4.
 
-- [ ] Add global `g_boot_done` (bool, initial false, restore_value no)
-- [ ] Add `on_boot` hook in the `esphome:` section with priority -100, delay 60 s,
+- [x] Add global `g_boot_done` (bool, initial false, restore_value no)
+- [x] Add `on_boot` hook in the `esphome:` section with priority -100, delay 60 s,
       then set `g_boot_done = true`
-- [ ] Add `g_boot_done` as a third condition in the PIR `on_press` handler
+- [x] Add `g_boot_done` as a third condition in the PIR `on_press` handler
       (alongside `switch.is_on: motion_enabled` and `!g_motion_blocked`)
-- [ ] Increase PIR `delayed_on` filter from 50 ms to 500 ms
-- [ ] Verify with `esphome config esp32-c3-light.yaml`
+- [x] Increase PIR `delayed_on` filter from 50 ms to 500 ms
+- [x] Verify with `esphome config esp32-c3-light.yaml`
