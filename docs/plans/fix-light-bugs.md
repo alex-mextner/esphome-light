@@ -73,10 +73,10 @@ Context: when the user turns off the Motion Detection switch in HA, it should
 re-enable itself automatically after 4 hours. Implemented as a standalone HA
 automation YAML that can be pasted into `automations.yaml` or imported via UI.
 
-- [ ] Create `motion-detection-auto-enable.yaml` with an automation triggered by
+- [x] Create `motion-detection-auto-enable.yaml` with an automation triggered by
       `switch.motion_detection` going to `off` for 4 hours, action `switch.turn_on`
-- [ ] Include a comment at the top explaining how to add it to HA
-- [ ] Validate with `yamllint -d relaxed motion-detection-auto-enable.yaml`
+- [x] Include a comment at the top explaining how to add it to HA
+- [x] Validate with `yamllint -d relaxed motion-detection-auto-enable.yaml`
 
 ### Task 4: Fix phantom turn-ons — startup delay + better PIR filtering (Bug 4)
 
