@@ -39,15 +39,15 @@ target immediately. Replace with a `while` loop that decrements brightness by a
 calculated step every 10 s using two new `float` globals: `g_dim_brightness` and
 `g_dim_step`.
 
-- [ ] Add globals `g_dim_brightness` (float, initial 0.0) and `g_dim_step` (float, initial 0.0)
-- [ ] Replace the current step-3 `light.turn_on` + step-4 `delay` pair inside
+- [x] Add globals `g_dim_brightness` (float, initial 0.0) and `g_dim_step` (float, initial 0.0)
+- [x] Replace the current step-3 `light.turn_on` + step-4 `delay` pair inside
       `light_timer` with a lambda that calculates step size, then a `while` loop
       that decrements brightness and calls `light.turn_on` with `transition_length: 10s`
       followed by `delay: 10s` per iteration; the loop exits when brightness reaches
       the Dim Floor value
-- [ ] The `g_scripting` guard must be set true/false around each `light.turn_on`
+- [x] The `g_scripting` guard must be set true/false around each `light.turn_on`
       inside the loop, same as existing calls
-- [ ] Verify the script structure with `esphome config esp32-c3-light.yaml`
+- [x] Verify the script structure with `esphome config esp32-c3-light.yaml`
 
 ### Task 2: Add configurable parameters to HA (Bug 2 + missing params)
 
