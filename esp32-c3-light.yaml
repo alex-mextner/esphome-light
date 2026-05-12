@@ -230,17 +230,17 @@ script:
       # 2. Wait for the fade-in to finish.
       - delay: !lambda 'return (uint32_t)(id(fade_in_time).state * 1000);'
       # 3. Calculate per-step decrement: total steps = timer_duration*60s / 10s per step.
+      #    Sentinel g_dim_step = -1.0 means "no dimming range, hold at floor for full duration".
       - lambda: |-
           id(g_dim_brightness) = id(target_brightness).state / 100.0f;
           float floor_val = id(dim_floor).state / 100.0f;
           float range = id(g_dim_brightness) - floor_val;
           if (range <= 0.0f) {
-            id(g_dim_step) = 0.0f;
+            id(g_dim_step) = -1.0f;
             id(g_dim_brightness) = floor_val;
           } else {
             float steps = (id(timer_duration).state * 60.0f) / 10.0f;
-            id(g_dim_step) = (steps > 0.0f) ? (range / steps) : 0.0f;
-            if (id(g_dim_step) <= 0.0f) id(g_dim_brightness) = floor_val;
+            id(g_dim_step) = range / steps;
           }
       # 4. Step-based dim loop — 10 s per step so HA always shows the current level.
       - while:
@@ -258,6 +258,13 @@ script:
                 transition_length: 10s
             - lambda: 'id(g_scripting) = false;'
             - delay: 10s
+      # Hold at target brightness for the full timer_duration when target == dim_floor
+      # (dim loop was skipped; sentinel g_dim_step < 0 marks this case).
+      - if:
+          condition:
+            lambda: 'return id(g_dim_step) < 0.0f;'
+          then:
+            - delay: !lambda 'return (uint32_t)(id(timer_duration).state * 60000);'
       # 5. Quick final fade to off (~1 second).
       - lambda: 'id(g_scripting) = true;'
       - light.turn_off:
