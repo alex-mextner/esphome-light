@@ -232,10 +232,16 @@ script:
       # 3. Calculate per-step decrement: total steps = timer_duration*60s / 10s per step.
       - lambda: |-
           id(g_dim_brightness) = id(target_brightness).state / 100.0f;
-          float steps = (id(timer_duration).state * 60.0f) / 10.0f;
           float floor_val = id(dim_floor).state / 100.0f;
           float range = id(g_dim_brightness) - floor_val;
-          id(g_dim_step) = (steps > 0.0f) ? (range / steps) : 0.0f;
+          if (range <= 0.0f) {
+            id(g_dim_step) = 0.0f;
+            id(g_dim_brightness) = floor_val;
+          } else {
+            float steps = (id(timer_duration).state * 60.0f) / 10.0f;
+            id(g_dim_step) = (steps > 0.0f) ? (range / steps) : 0.0f;
+            if (id(g_dim_step) <= 0.0f) id(g_dim_brightness) = floor_val;
+          }
       # 4. Step-based dim loop — 10 s per step so HA always shows the current level.
       - while:
           condition:
