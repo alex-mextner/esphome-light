@@ -14,6 +14,28 @@ sshpass -p "$HA_SSH_PASS" ssh "$HA_SSH_USER@$HA_HOST" 'sudo tee /config/esphome/
 
 Note: SCP subsystem is disabled on this HA instance — use `ssh … sudo tee` pattern.
 
+## HA REST API
+
+Token setup (one-time): HA UI → Profile → Security → Long-Lived Access Tokens → Create.
+Save to `.env` as `HA_TOKEN=eyJ...`. Token never expires unless revoked.
+
+```bash
+source .env
+# Reload automations (after editing automations.yaml):
+curl -s -X POST "http://$HA_HOST:8123/api/services/automation/reload" \
+  -H "Authorization: Bearer $HA_TOKEN"
+
+# Call any service:
+curl -s -X POST "http://$HA_HOST:8123/api/services/<domain>/<service>" \
+  -H "Authorization: Bearer $HA_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"entity_id": "<entity>"}'
+
+# Check entity state:
+curl -s "http://$HA_HOST:8123/api/states/<entity_id>" \
+  -H "Authorization: Bearer $HA_TOKEN"
+```
+
 Or mirror the post-commit hook pattern from `../esphome-ir/scripts/sync-esphome-to-ha.sh`.
 
 When the file list changes, remove the obsolete file on HA too:
