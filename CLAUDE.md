@@ -36,13 +36,16 @@ sshpass -p "$HA_SSH_PASS" ssh root@192.168.0.25 'rm -f /config/esphome/<old>.yam
 ## Light logic
 
 1. PIR motion or HA `light.turn_on` (from off) → `script.execute: light_timer`
-2. Light fades in to `Target Brightness` over 2 s.
-3. Immediately starts a slow fade from current brightness down to 10%
-   over `Timer Duration` minutes (configurable 1–60, default 30).
+2. Light fades in to `Target Brightness` over `Fade In Time` s (default 2 s).
+3. Begins a step-based dim: every 10 s, brightness drops one step toward
+   `Dim Floor` % over the full `Timer Duration` minutes. Each step issues
+   `light.turn_on` so HA shows the current level within ~10 s.
 4. Any motion, HA turn-on, or `Target Brightness` change while light is on
    restarts the countdown (`script.mode: restart`).
 5. `Timer Duration` change does NOT restart — takes effect on next trigger.
-6. HA `light.turn_off` stops the script immediately (`on_turn_off` handler).
+6. HA `light.turn_off` stops the script immediately (`on_turn_off` handler)
+   and starts a `Motion Block Duration` min cooldown (default 1 min) — PIR
+   is ignored until it expires.
 7. After the full dim, `light.turn_off` with 1 s transition.
 
 ## HA entities
@@ -52,6 +55,9 @@ sshpass -p "$HA_SSH_PASS" ssh root@192.168.0.25 'rm -f /config/esphome/<old>.yam
 | `light.motion_light` | Main light, turn on/off from dashboards |
 | `number.target_brightness` | Target brightness %, persisted |
 | `number.timer_duration` | Fade-out duration in minutes, persisted |
+| `number.motion_block_duration` | PIR cooldown after manual turn-off, min (0–60, default 1) |
+| `number.fade_in_time` | Fade-in duration in seconds (1–10, default 2) |
+| `number.dim_floor` | Bottom brightness before auto-off, % (1–50, default 10) |
 | `switch.motion_detection` | Enable/disable PIR trigger |
 | `binary_sensor.pir_motion` | Raw PIR state |
 | `sensor.uptime`, `sensor.wifi_signal` | Diagnostics |
@@ -90,6 +96,9 @@ curl http://<ip>/events
 - **Light won't turn off after HA turn_off**: script is still running and
   countering — check that `g_scripting` isn't stuck `true` (would happen if
   the device rebooted mid-script). A reboot clears it (initial_value: false).
+- **PIR unresponsive for ~60 s after power-on**: expected — `g_boot_done` starts `false`
+  and is set `true` only after the 60 s `on_boot` delay (HC-SR501 warm-up window).
+  Motion during this window is silently ignored. No action needed.
 - **Transition math**: dim from 80% to 10% over 30 min at 1 kHz LEDC
   (16-bit = 65535 levels) with 10 ms update interval = ~180 000 steps,
   ~0.0004% per step — imperceptible moment to moment.
