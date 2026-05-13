@@ -7,8 +7,12 @@ Source of truth is this repo. The HAOS Dashboard add-on reads
 edit to `esp32-c3-light.yaml` or `secrets.yaml`, sync to HA:
 
 ```bash
-sshpass -p "$HA_SSH_PASS" scp esp32-c3-light.yaml root@192.168.0.25:/config/esphome/
+# credentials in .env (gitignored): HA_SSH_USER, HA_SSH_PASS, HA_HOST
+source .env
+sshpass -p "$HA_SSH_PASS" ssh "$HA_SSH_USER@$HA_HOST" 'sudo tee /config/esphome/esp32-c3-light.yaml > /dev/null' < esp32-c3-light.yaml
 ```
+
+Note: SCP subsystem is disabled on this HA instance — use `ssh … sudo tee` pattern.
 
 Or mirror the post-commit hook pattern from `../esphome-ir/scripts/sync-esphome-to-ha.sh`.
 
