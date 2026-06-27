@@ -74,6 +74,13 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
+  # g_auto_off: true while the script performs its own final fade-to-off, so the
+  # late-firing on_turn_off (end of the 1 s transition) can tell a script-driven
+  # shutdown from a manual HA turn-off and skip the motion-block cooldown.
+  - id: g_auto_off
+    type: bool
+    restore_value: no
+    initial_value: 'false'
 
 number:
   - platform: template
@@ -162,8 +169,17 @@ light:
       then:
         - if:
             condition:
-              lambda: 'return !id(g_scripting);'
+              # g_scripting guards the synchronous fade/dim turn-ons; g_auto_off
+              # marks the script's own final fade-to-off, whose on_turn_off fires
+              # only AFTER the 1 s transition completes (g_scripting already
+              # cleared by then). Either case is script-driven — never start the
+              # cooldown; only a genuine manual HA turn-off should.
+              # Accepted edge: a manual HA off landing inside that final 1 s fade
+              # is read as script-driven and skips the cooldown — negligible window.
+              lambda: 'return id(g_scripting) || id(g_auto_off);'
             then:
+              - lambda: 'id(g_auto_off) = false;'
+            else:
               - script.stop: light_timer
               - script.execute: motion_block_timer
 
@@ -228,7 +244,9 @@ script:
     mode: restart
     then:
       # 1. Fade in to configured brightness over 2 seconds.
-      - lambda: 'id(g_scripting) = true;'
+      - lambda: |-
+          id(g_scripting) = true;
+          id(g_auto_off) = false;
       - light.turn_on:
           id: motion_light
           brightness: !lambda 'return id(target_brightness).state / 100.0f;'
@@ -280,9 +298,13 @@ script:
                 transition_length: 1s
             - lambda: 'id(g_scripting) = false;'
             - delay: !lambda 'return (uint32_t)(id(timer_duration).state * 60000);'
-      # 5. Quick final fade to off (~1 second).
-      - lambda: 'id(g_scripting) = true;'
+      # 5. Quick final fade to off (~1 s). Mark as auto-off FIRST: on_turn_off
+      #    fires only when this 1 s transition completes, by which point a
+      #    synchronous g_scripting guard would already be cleared — so the
+      #    motion-block cooldown would wrongly start and blind the PIR. The
+      #    g_auto_off flag survives the transition and tells on_turn_off this
+      #    was the script's own shutdown.
+      - lambda: 'id(g_auto_off) = true;'
       - light.turn_off:
           id: motion_light
           transition_length: 1s
-      - lambda: 'id(g_scripting) = false;'
