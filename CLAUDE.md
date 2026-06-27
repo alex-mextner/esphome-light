@@ -1,23 +1,31 @@
 # esphome-light project notes
 
-## HA config sync — keep `/config/esphome/` in step
+## HA config sync — keep `/home/ultra/esphome/` in step
 
-Source of truth is this repo. The HAOS Dashboard add-on reads
-`/config/esphome/*.yaml` directly — HA must mirror the repo. After ANY
-edit to `esp32-c3-light.yaml` or `secrets.yaml`, sync to HA:
+Source of truth is this repo. The ESPHome Dashboard runs as a Docker container
+(`homeassistant-esphome-1`, port 6052) on host `home`, bind-mounting
+`/home/ultra/esphome/` → the container's `/config`. HA must mirror the repo.
+After ANY edit to `esp32-c3-light.yaml`, sync it to the host:
 
 ```bash
-# credentials in .env (gitignored): HA_SSH_USER, HA_SSH_PASS, HA_HOST
-source .env
-sshpass -p "$HA_SSH_PASS" ssh "$HA_SSH_USER@$HA_HOST" 'sudo tee /config/esphome/esp32-c3-light.yaml > /dev/null' < esp32-c3-light.yaml
+# Key-based Tailscale SSH — no password, no sudo (user `ultra` owns the dir).
+ssh ultra@home.tailbfe8ea.ts.net 'cat > /home/ultra/esphome/esp32-c3-light.yaml' < esp32-c3-light.yaml
 ```
 
-Note: SCP subsystem is disabled on this HA instance — use `ssh … sudo tee` pattern.
+The host `secrets.yaml` already holds `wifi_ssid`/`wifi_password` (shared with the
+IR device) — no need to resync it. If you add a NEW `!secret`, append it to the
+host file too: `ssh ultra@home.tailbfe8ea.ts.net 'cat >> /home/ultra/esphome/secrets.yaml'`.
+SCP may be disabled; the `ssh … 'cat > file'` pattern works.
+
+DEAD PATH — do NOT use: the old HAOS add-on route `/config/esphome/` via
+`sshpass … ssh hassio@192.168.0.25 sudo tee`. `192.168.0.25` is unreachable from the
+dev Mac and `/config/esphome/` does not exist on this host. Use the Docker path above.
 
 ## HA REST API
 
 Token setup (one-time): HA UI → Profile → Security → Long-Lived Access Tokens → Create.
-Save to `.env` as `HA_TOKEN=eyJ...`. Token never expires unless revoked.
+Save to `.env` as `HA_TOKEN=eyJ...`. Token never expires unless revoked. The `.env`
+also needs `HA_HOST` (the HA IP/host) used by the curl examples below.
 
 ```bash
 source .env
@@ -38,16 +46,17 @@ curl -s "http://$HA_HOST:8123/api/states/<entity_id>" \
 
 Or mirror the post-commit hook pattern from `../esphome-ir/scripts/sync-esphome-to-ha.sh`.
 
-When the file list changes, remove the obsolete file on HA too:
+When the file list changes, remove the obsolete file on the host too:
 ```bash
-sshpass -p "$HA_SSH_PASS" ssh root@192.168.0.25 'rm -f /config/esphome/<old>.yaml'
+ssh ultra@home.tailbfe8ea.ts.net 'rm -f /home/ultra/esphome/<old>.yaml'
 ```
 
 ## Network layout
 
 - `192.168.0.25` — homeassistant.local (HA)
 - `192.168.0.18` — Ultras-MBP (dev Mac)
-- esp32-c3-light — DHCP, use `esp32-c3-light.local` or HA dashboard for IP
+- esp32-c3-light — static `192.168.0.12` (reserve for MAC A0:F2:62:B3:08:48 in the
+  router, or move outside the DHCP pool); `esp32-c3-light.local` also resolves
 
 ## Hardware wiring
 
