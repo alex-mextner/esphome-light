@@ -95,6 +95,7 @@ ssh ultra@home.tailbfe8ea.ts.net 'rm -f /home/ultra/esphome/<old>.yaml'
 | `number.dim_floor` | Bottom brightness before auto-off, % (1–50, default 10) |
 | `switch.motion_detection` | Enable/disable PIR trigger |
 | `binary_sensor.pir_motion` | Raw PIR state |
+| `sensor.brightness` | Live light brightness %, recorded so HA graphs the dim curve |
 | `sensor.uptime`, `sensor.wifi_signal` | Diagnostics |
 | `sensor.heap_free`, `sensor.loop_time` | Diagnostics |
 
