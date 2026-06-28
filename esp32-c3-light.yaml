@@ -220,6 +220,22 @@ binary_sensor:
               - script.execute: light_timer
 
 sensor:
+  # Mirror the light's live brightness as a numeric sensor so HA records a clean
+  # history/graph of the dim curve. The light entity reports brightness live, but
+  # HA's recorder dedupes rapid light-attribute steps out of history; a dedicated
+  # sensor persists reliably. Reports 0 when the light is off.
+  - platform: template
+    name: "Brightness"
+    id: light_brightness_pct
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    state_class: measurement
+    update_interval: 5s
+    lambda: |-
+      if (id(motion_light).current_values.is_on()) {
+        return id(motion_light).current_values.get_brightness() * 100.0f;
+      }
+      return 0.0f;
   - platform: uptime
     name: "Uptime"
     update_interval: 5s
