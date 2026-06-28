@@ -22,6 +22,20 @@ esp32:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  # ESP32-C3 drops wifi with the default modem power-save on. Match the IR
+  # device (power_save_mode: none) to keep the node reachable for OTA/HA.
+  power_save_mode: none
+  # Static IP: DHCP kept reassigning the node, leaving HA's ESPHome integration
+  # pointed at a stale address (device fell to "unavailable"). Pin it so HA's
+  # stored host stays valid. .12 is the address DHCP last issued — RESERVE it for
+  # this node's MAC (A0:F2:62:B3:08:48) in the router, or use an address outside
+  # the DHCP pool, else the router may lease .12 to another client while it's
+  # offline and cause an IP conflict.
+  manual_ip:
+    static_ip: 192.168.0.12
+    gateway: 192.168.0.1
+    subnet: 255.255.255.0
+    dns1: 192.168.0.1
   ap:
     ssid: "esp32-c3-light Fallback"
     password: "fallback123"
