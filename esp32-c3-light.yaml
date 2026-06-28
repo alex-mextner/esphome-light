@@ -47,6 +47,15 @@ ota:
   platform: esphome
 
 api:
+  # reboot_timeout defaults to 15min: with NO API client (Home Assistant)
+  # connected, the node reboots every 15min. This light is designed to run
+  # STANDALONE — PIR -> on-device script logic, all settings persisted via
+  # restore_value/restore_mode — so a missing or removed HA must NOT cause
+  # reboots. Each reboot drops the light (restore_mode: ALWAYS_OFF) and blinds
+  # the PIR for the 60s on_boot warm-up. Disable the API watchdog reboot.
+  # WiFi recovery is handled separately by wifi: reboot_timeout (still default
+  # 15min), which reboots only on real WiFi loss, not on HA absence.
+  reboot_timeout: 0s
 
 web_server:
   port: 80
