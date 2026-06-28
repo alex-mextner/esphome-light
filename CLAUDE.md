@@ -17,6 +17,8 @@ IR device) — no need to resync it. If you add a NEW `!secret`, append it to th
 host file too: `ssh ultra@home.tailbfe8ea.ts.net 'cat >> /home/ultra/esphome/secrets.yaml'`.
 SCP may be disabled; the `ssh … 'cat > file'` pattern works.
 
+> **Automated:** a local `post-commit` hook (`.git/hooks/post-commit` → `scripts/sync-esphome-to-ha.sh`) now pushes `esp32-c3-light.yaml` and `deploy/ha-host-AGENTS.md` (→ host `AGENTS.md`) to `/home/ultra/esphome/` on every commit, over key-based Tailscale SSH as `ultra@home.tailbfe8ea.ts.net`. It is non-fatal: if the host is unreachable (e.g. Tailscale SSH needs re-auth) it warns and the commit still succeeds — re-run `bash scripts/sync-esphome-to-ha.sh` once access is restored. `secrets.yaml` is intentionally not synced (shared with the IR device).
+
 DEAD PATH — do NOT use: the old HAOS add-on route `/config/esphome/` via
 `sshpass … ssh hassio@192.168.0.25 sudo tee`. `192.168.0.25` is unreachable from the
 dev Mac and `/config/esphome/` does not exist on this host. Use the Docker path above.
@@ -138,3 +140,8 @@ curl http://<ip>/events
 - **Transition math**: dim from 80% to 10% over 30 min at 1 kHz LEDC
   (16-bit = 65535 levels) with 10 ms update interval = ~180 000 steps,
   ~0.0004% per step — imperceptible moment to moment.
+- **Runs standalone without HA**: `api: reboot_timeout: 0s` disables the API
+  watchdog reboot, so a missing/removed Home Assistant never reboots the node.
+  All light behaviour (PIR → on-device scripts) and settings
+  (`restore_value`/`restore_mode`) live on-device. WiFi recovery still works
+  via `wifi:`'s own `reboot_timeout`.
