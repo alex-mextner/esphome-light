@@ -1,0 +1,6 @@
+#!/bin/sh
+# The reason this repo overrides core.hooksPath: run the HA sync after every
+# commit. The global dispatcher provides no post-commit composer.
+"$(git rev-parse --show-toplevel)/scripts/sync-esphome-to-ha.sh" || true
+# Symmetry: run any global post-commit dispatcher frags too (none today; no-op).
+[ -x "$HOME/.config/git/run-global-hooks" ] && "$HOME/.config/git/run-global-hooks" post-commit "$@" || true

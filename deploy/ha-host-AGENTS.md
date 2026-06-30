@@ -1,5 +1,7 @@
 # AGENTS.md — Home Assistant ESPHome config host (DEPLOYED MIRROR)
 
+> ⚠️ **Do NOT hand-edit files in this directory — they are overwritten on every commit by the source repos on the dev Mac. Edits made here are silently lost.**
+
 This directory (`/home/ultra/esphome/`) is the ESPHome Dashboard's `/config`
 (Docker container `homeassistant-esphome-1`, port 6052, on host `home`). It is a
 **deployed mirror — NOT the source of truth.**
