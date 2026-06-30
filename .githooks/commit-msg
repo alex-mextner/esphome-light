@@ -1,0 +1,6 @@
+#!/bin/sh
+# Repo-local core.hooksPath override delegates gate events back to the global
+# composer so require-ticket / secret-scan / review-gate still run. (Override
+# is needed because the global dispatcher has no post-commit composer — see
+# .githooks/post-commit.)
+exec "$HOME/.config/git/hooks/commit-msg" "$@"

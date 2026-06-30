@@ -22,6 +22,20 @@ esp32:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  # ESP32-C3 drops wifi with the default modem power-save on. Match the IR
+  # device (power_save_mode: none) to keep the node reachable for OTA/HA.
+  power_save_mode: none
+  # Static IP: DHCP kept reassigning the node, leaving HA's ESPHome integration
+  # pointed at a stale address (device fell to "unavailable"). Pin it so HA's
+  # stored host stays valid. .12 is the address DHCP last issued — RESERVE it for
+  # this node's MAC (A0:F2:62:B3:08:48) in the router, or use an address outside
+  # the DHCP pool, else the router may lease .12 to another client while it's
+  # offline and cause an IP conflict.
+  manual_ip:
+    static_ip: 192.168.0.12
+    gateway: 192.168.0.1
+    subnet: 255.255.255.0
+    dns1: 192.168.0.1
   ap:
     ssid: "esp32-c3-light Fallback"
     password: "fallback123"
@@ -33,6 +47,15 @@ ota:
   platform: esphome
 
 api:
+  # reboot_timeout defaults to 15min: with NO API client (Home Assistant)
+  # connected, the node reboots every 15min. This light is designed to run
+  # STANDALONE — PIR -> on-device script logic, all settings persisted via
+  # restore_value/restore_mode — so a missing or removed HA must NOT cause
+  # reboots. Each reboot drops the light (restore_mode: ALWAYS_OFF) and blinds
+  # the PIR for the 60s on_boot warm-up. Disable the API watchdog reboot.
+  # WiFi recovery is handled separately by wifi: reboot_timeout (still default
+  # 15min), which reboots only on real WiFi loss, not on HA absence.
+  reboot_timeout: 0s
 
 web_server:
   port: 80
@@ -71,6 +94,13 @@ globals:
     restore_value: no
     initial_value: '0.0'
   - id: g_boot_done
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  # g_auto_off: true while the script performs its own final fade-to-off, so the
+  # late-firing on_turn_off (end of the 1 s transition) can tell a script-driven
+  # shutdown from a manual HA turn-off and skip the motion-block cooldown.
+  - id: g_auto_off
     type: bool
     restore_value: no
     initial_value: 'false'
@@ -162,8 +192,17 @@ light:
       then:
         - if:
             condition:
-              lambda: 'return !id(g_scripting);'
+              # g_scripting guards the synchronous fade/dim turn-ons; g_auto_off
+              # marks the script's own final fade-to-off, whose on_turn_off fires
+              # only AFTER the 1 s transition completes (g_scripting already
+              # cleared by then). Either case is script-driven — never start the
+              # cooldown; only a genuine manual HA turn-off should.
+              # Accepted edge: a manual HA off landing inside that final 1 s fade
+              # is read as script-driven and skips the cooldown — negligible window.
+              lambda: 'return id(g_scripting) || id(g_auto_off);'
             then:
+              - lambda: 'id(g_auto_off) = false;'
+            else:
               - script.stop: light_timer
               - script.execute: motion_block_timer
 
@@ -190,6 +229,22 @@ binary_sensor:
               - script.execute: light_timer
 
 sensor:
+  # Mirror the light's live brightness as a numeric sensor so HA records a clean
+  # history/graph of the dim curve. The light entity reports brightness live, but
+  # HA's recorder dedupes rapid light-attribute steps out of history; a dedicated
+  # sensor persists reliably. Reports 0 when the light is off.
+  - platform: template
+    name: "Brightness"
+    id: light_brightness_pct
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    state_class: measurement
+    update_interval: 5s
+    lambda: |-
+      if (id(motion_light).current_values.is_on()) {
+        return id(motion_light).current_values.get_brightness() * 100.0f;
+      }
+      return 0.0f;
   - platform: uptime
     name: "Uptime"
     update_interval: 5s
@@ -228,7 +283,9 @@ script:
     mode: restart
     then:
       # 1. Fade in to configured brightness over 2 seconds.
-      - lambda: 'id(g_scripting) = true;'
+      - lambda: |-
+          id(g_scripting) = true;
+          id(g_auto_off) = false;
       - light.turn_on:
           id: motion_light
           brightness: !lambda 'return id(target_brightness).state / 100.0f;'
@@ -280,9 +337,13 @@ script:
                 transition_length: 1s
             - lambda: 'id(g_scripting) = false;'
             - delay: !lambda 'return (uint32_t)(id(timer_duration).state * 60000);'
-      # 5. Quick final fade to off (~1 second).
-      - lambda: 'id(g_scripting) = true;'
+      # 5. Quick final fade to off (~1 s). Mark as auto-off FIRST: on_turn_off
+      #    fires only when this 1 s transition completes, by which point a
+      #    synchronous g_scripting guard would already be cleared — so the
+      #    motion-block cooldown would wrongly start and blind the PIR. The
+      #    g_auto_off flag survives the transition and tells on_turn_off this
+      #    was the script's own shutdown.
+      - lambda: 'id(g_auto_off) = true;'
       - light.turn_off:
           id: motion_light
           transition_length: 1s
-      - lambda: 'id(g_scripting) = false;'

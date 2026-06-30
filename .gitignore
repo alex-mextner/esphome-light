@@ -4,3 +4,6 @@
 /.esphome/
 /secrets.yaml
 /.claude/
+/.serena/
+/.playwright-mcp/
+/.env
